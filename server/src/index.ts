@@ -1,53 +1,51 @@
-import { fetchReleases, REPOS } from './fetchReleases';
-import { analyzeReleases } from './analyzeReleases';
-import { writeFileSync } from 'fs';
-import { join } from 'path';
-import { stringify } from 'csv-stringify/sync';
+import express from 'express';
+import cors from 'cors';
+import { parse } from 'csv-parse/sync';
+import fs from 'fs';
+import path from 'path';
+import type { ReleaseData, DashboardData } from './types/release';
+import { calculateStats, getTopAuthors, getReleaseTrend } from './utils/releaseStats';
 
-async function main() {
-  try {
-    const allStats: any[] = [];
-    const allRawData: any[] = [];
+const app = express();
+const port = process.env.PORT || 3000;
 
-    for (const repo of REPOS) {
-      console.log(`\nFetching releases for ${repo.owner}/${repo.repo}...`);
-      const releases = await fetchReleases(repo);
-      console.log(`Total releases fetched: ${releases.length}`);
+app.use(cors());
+app.use(express.json());
 
-      const { stats, rawData } = analyzeReleases(releases, repo.repo);
-      allStats.push(...stats);
-      allRawData.push(...rawData);
-    }
+// CSV 파일에서 데이터 로드
+const loadData = (): ReleaseData[] => {
+  const csvPath = path.join(__dirname, '..', 'data', 'release_raw_data.csv');
+  const fileContent = fs.readFileSync(csvPath, 'utf-8');
+  return parse(fileContent, {
+    columns: true,
+    skip_empty_lines: true
+  });
+};
 
-    // 통계 데이터를 CSV로 저장
-    const statsCsv = stringify(allStats, {
-      header: true,
-      columns: {
-        repo: 'Repository',
-        stat_type: 'Stat Type',
-        period: 'Period',
-        value: 'Value',
-      },
-    });
+// 데이터를 메모리에 로드
+let releaseData: ReleaseData[] = loadData();
 
-    // 로우 데이터를 CSV로 저장
-    const rawDataCsv = stringify(allRawData, {
-      header: true,
-    });
+// API 엔드포인트
+app.get('/api/dashboard', (req, res) => {
+  const { repository } = req.query;
+  
+  // 리포지토리 필터링
+  const filteredData = repository && repository !== 'all'
+    ? releaseData.filter(release => release.Repository === repository)
+    : releaseData;
 
-    const statsPath = join(__dirname, '../data/release_stats.csv');
-    const rawDataPath = join(__dirname, '../data/release_raw_data.csv');
+  // 대시보드 데이터 생성
+  const dashboardData: DashboardData = {
+    stats: calculateStats(filteredData),
+    topAuthors: getTopAuthors(filteredData),
+    releaseTrend: getReleaseTrend(filteredData),
+    repositories: Array.from(new Set(releaseData.map(release => release.Repository)))
+  };
 
-    writeFileSync(statsPath, statsCsv);
-    writeFileSync(rawDataPath, rawDataCsv);
+  res.json(dashboardData);
+});
 
-    console.log(`\nAnalysis complete!`);
-    console.log(`Statistics saved to: ${statsPath}`);
-    console.log(`Raw data saved to: ${rawDataPath}`);
-  } catch (error) {
-    console.error('Error:', error);
-    process.exit(1);
-  }
-}
-
-main();
+// 서버 시작
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

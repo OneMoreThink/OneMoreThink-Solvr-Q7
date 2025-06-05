@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Box, Paper, Typography, Card, CardContent, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
+import { Bar, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,14 +8,11 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
-import Papa from 'papaparse';
-import type { ReleaseData } from './types/release';
-import { calculateStats, getTopAuthors, getReleaseTrend, getVersionUpgradePattern } from './utils/releaseStats';
+import type { DashboardData } from '../types/release';
 
 ChartJS.register(
   CategoryScale,
@@ -23,7 +20,6 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -49,22 +45,17 @@ const chartOptions = {
 };
 
 function App() {
-  const [data, setData] = useState<ReleaseData[]>([]);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRepository, setSelectedRepository] = useState<string>('all');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('/release_raw_data.csv');
-        const csvText = await response.text();
-        Papa.parse(csvText, {
-          header: true,
-          complete: (results) => {
-            setData(results.data as ReleaseData[]);
-            setLoading(false);
-          },
-        });
+        const response = await fetch(`http://localhost:3000/api/dashboard?repository=${selectedRepository}`);
+        const dashboardData = await response.json();
+        setData(dashboardData);
+        setLoading(false);
       } catch (error) {
         console.error('Error loading data:', error);
         setLoading(false);
@@ -72,29 +63,20 @@ function App() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedRepository]);
 
-  if (loading) {
+  if (loading || !data) {
     return <Typography>로딩 중...</Typography>;
   }
 
-  const filteredData = selectedRepository === 'all'
-    ? data
-    : data.filter(release => release.Repository === selectedRepository);
-
-  const stats = calculateStats(filteredData);
-  const topAuthors = getTopAuthors(filteredData);
-  const releaseTrend = getReleaseTrend(filteredData);
-  const versionPattern = getVersionUpgradePattern(filteredData);
-
-  // 요일별 평균 릴리즈 수
+  // 요일별 릴리즈 분포
   const weekdayData = {
     labels: ['월요일', '화요일', '수요일', '목요일', '금요일'],
     datasets: [
       {
         label: '요일별 릴리즈 수',
         data: ['월요일', '화요일', '수요일', '목요일', '금요일'].map(day => 
-          stats.releasesByWeekday[day] || 0
+          data.stats.releasesByWeekday[day] || 0
         ),
         backgroundColor: '#36A2EB',
       },
@@ -103,11 +85,11 @@ function App() {
 
   // 업무 시간대별 릴리즈 분포
   const hourData = {
-    labels: Object.keys(stats.releasesByHour),
+    labels: Object.keys(data.stats.releasesByHour),
     datasets: [
       {
         label: '업무 시간대별 릴리즈 분포',
-        data: Object.values(stats.releasesByHour),
+        data: Object.values(data.stats.releasesByHour),
         backgroundColor: '#FFCE56',
       },
     ],
@@ -115,48 +97,22 @@ function App() {
 
   // 월별 릴리즈 추이
   const trendData = {
-    labels: releaseTrend.monthly.map((item) => item.date),
+    labels: data.releaseTrend.monthly.map((item) => item.date),
     datasets: [
       {
         label: '월별 릴리즈 수',
-        data: releaseTrend.monthly.map((item) => item.count),
+        data: data.releaseTrend.monthly.map((item) => item.count),
         borderColor: '#4BC0C0',
         tension: 0.1,
       },
       {
         label: '누적 릴리즈 수',
-        data: releaseTrend.cumulative.map((item) => item.count),
+        data: data.releaseTrend.cumulative.map((item) => item.count),
         borderColor: '#FF6384',
         tension: 0.1,
       },
     ],
   };
-
-  // 버전 업그레이드 패턴
-  const versionData = {
-    labels: versionPattern.map((item) => item.type),
-    datasets: [
-      {
-        label: '평균 업그레이드 주기 (일)',
-        data: versionPattern.map((item) => item.avgDays),
-        backgroundColor: '#9966FF',
-      },
-    ],
-  };
-
-  // 기여자별 릴리즈 정보
-  const authorData = {
-    labels: topAuthors.map((author) => author.author),
-    datasets: [
-      {
-        label: '평균 릴리즈 주기 (일)',
-        data: topAuthors.map((author) => author.avgDays),
-        backgroundColor: '#FF6384',
-      },
-    ],
-  };
-
-  const repositories = Array.from(new Set(data.map(release => release.Repository)));
 
   return (
     <Container maxWidth="xl">
@@ -176,7 +132,7 @@ function App() {
             onChange={(e) => setSelectedRepository(e.target.value)}
           >
             <MenuItem value="all">모든 리포지토리</MenuItem>
-            {repositories.map((repo) => (
+            {data.repositories.map((repo) => (
               <MenuItem key={repo} value={repo}>
                 {repo}
               </MenuItem>
@@ -193,7 +149,7 @@ function App() {
               평일 릴리즈 수
             </Typography>
             <Typography variant="h4">
-              {stats.totalReleases}
+              {data.stats.totalReleases}
             </Typography>
             <Typography variant="body2" color="textSecondary">
               평일 동안의 총 릴리즈 수입니다.
@@ -206,7 +162,7 @@ function App() {
               프리릴리즈 수
             </Typography>
             <Typography variant="h4">
-              {stats.preReleaseCount}
+              {data.stats.preReleaseCount}
             </Typography>
             <Typography variant="body2" color="textSecondary">
               테스트나 검증을 위한 프리릴리즈의 수입니다.
@@ -219,7 +175,7 @@ function App() {
               드래프트 수
             </Typography>
             <Typography variant="h4">
-              {stats.draftCount}
+              {data.stats.draftCount}
             </Typography>
             <Typography variant="body2" color="textSecondary">
               아직 공개되지 않은 드래프트 릴리즈의 수입니다.
@@ -280,9 +236,9 @@ function App() {
           <Typography variant="body2" color="textSecondary" paragraph>
             • 주말 릴리즈는 모든 통계에서 제외되었습니다.
             <br />
-            • 프리릴리즈: {stats.preReleaseCount}개
+            • 프리릴리즈: {data.stats.preReleaseCount}개
             <br />
-            • 드래프트: {stats.draftCount}개
+            • 드래프트: {data.stats.draftCount}개
           </Typography>
         </Paper>
       </Box>

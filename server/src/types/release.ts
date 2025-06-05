@@ -3,8 +3,8 @@ export interface ReleaseData {
   TagName: string;
   PublishedAtKST: string;
   AuthorLogin: string;
-  IsPreRelease: boolean;
-  IsDraft: boolean;
+  IsPreRelease: string;
+  IsDraft: string;
 }
 
 export interface ReleaseStats {
@@ -20,14 +20,8 @@ export interface ReleaseStats {
 }
 
 export interface ReleaseTrend {
-  monthly: Array<{
-    date: string;
-    count: number;
-  }>;
-  cumulative: Array<{
-    date: string;
-    count: number;
-  }>;
+  monthly: { date: string; count: number }[];
+  cumulative: { date: string; count: number }[];
 }
 
 export interface TopAuthor {
@@ -38,7 +32,7 @@ export interface TopAuthor {
 
 export interface DashboardData {
   stats: ReleaseStats;
-  releaseTrend: ReleaseTrend;
   topAuthors: TopAuthor[];
+  releaseTrend: ReleaseTrend;
   repositories: string[];
 } 

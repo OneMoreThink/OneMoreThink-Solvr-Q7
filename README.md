@@ -1,85 +1,78 @@
-# 풀스택 서비스 보일러 플레이트
+# GitHub Release Dashboard
 
-## 프로젝트 개요
+GitHub 릴리즈 데이터를 시각화하여 릴리즈 패턴과 트렌드를 분석할 수 있는 대시보드입니다.
 
-이 보일러 플레이트는 풀스택 웹 애플리케이션 개발을 위한 기본 구조를 제공합니다. monorepo 구조로 클라이언트와 서버를 효율적으로 관리하며, 현대적인 웹 개발 기술 스택을 활용합니다.
+## 주요 기능
+
+1. **핵심 지표**
+   - 평일 릴리즈 수
+   - 프리릴리즈 수
+   - 드래프트 수
+
+2. **릴리즈 분포**
+   - 요일별 릴리즈 분포
+   - 업무 시간대별 릴리즈 분포
+
+3. **릴리즈 트렌드**
+   - 월별 릴리즈 수
+   - 누적 릴리즈 수
 
 ## 기술 스택
 
-### 공통
-
-- 패키지 매니저: pnpm (workspace 기능 활용)
-- 언어: TypeScript
-- Node.js 버전: 22.x
-- 테스트: Vitest
-- 코드 품질: Prettier
+### 서버
+- Node.js
+- Express
+- TypeScript
+- csv-parse
 
 ### 클라이언트
-
-- 프레임워크: React
-- 빌드 도구: Vite
-- 라우팅: React Router
-- 스타일링: TailwindCSS
-
-### 서버
-
-- 프레임워크: Fastify
-- 데이터베이스: SQLite with DirzzleORM
+- React
+- TypeScript
+- Material-UI
+- Chart.js
 
 ## 설치 및 실행
 
-### 초기 설치
-
+### 서버
 ```bash
-# 프로젝트 루트 디렉토리에서 실행
+cd server
 pnpm install
-```
-
-### 개발 서버 실행
-
-```bash
-# 클라이언트 및 서버 동시 실행
-pnpm dev
-
-# 클라이언트만 실행
-pnpm dev:client
-
-# 서버만 실행
-pnpm dev:server
-```
-
-### 테스트 실행
-
-```bash
-# 클라이언트 테스트
-pnpm test:client
-
-# 서버 테스트
-pnpm test:server
-
-# 모든 테스트 실행
-pnpm test
-```
-
-### 빌드
-
-```bash
-# 클라이언트 및 서버 빌드
 pnpm build
+pnpm start
 ```
 
-## 환경 변수 설정
+### 클라이언트
+```bash
+cd dashboard
+pnpm install
+pnpm dev
+```
 
-- 클라이언트: `client/.env` 파일에 설정 (예시는 `client/.env.example` 참조)
-- 서버: `server/.env` 파일에 설정 (예시는 `server/.env.example` 참조)
+## 데이터 형식
 
-## API 엔드포인트
+CSV 파일은 다음 필드를 포함합니다:
+- Repository: 리포지토리 이름
+- TagName: 릴리즈 태그
+- PublishedAtKST: KST 기준 발행 시간
+- AuthorLogin: 작성자
+- IsPreRelease: 프리릴리즈 여부
+- IsDraft: 드래프트 여부
 
-서버는 다음과 같은 기본 API 엔드포인트를 제공합니다:
+## 주의사항
 
-- `GET /api/health`: 서버 상태 확인
-- `GET /api/users`: 유저 목록 조회
-- `GET /api/users/:id`: 특정 유저 조회
-- `POST /api/users`: 새 유저 추가
-- `PUT /api/users/:id`: 유저 정보 수정
-- `DELETE /api/users/:id`: 유저 삭제
+- 주말 릴리즈는 모든 통계에서 제외됩니다.
+- 프리릴리즈와 드래프트는 별도로 집계됩니다.
+
+## 변경 이력
+
+### Task5: Mission Complete!
+- 서버와 클라이언트 분리
+  - 서버: Express 기반 API 서버 구현
+  - 클라이언트: React 기반 대시보드 구현
+- 데이터 처리 로직 서버로 이동
+- CORS 설정 추가
+- CSV 파일 경로 수정
+- 불필요한 차트 제거
+- 타입 정의 파일 생성
+- 리포지토리 필터링 기능 유지
+
