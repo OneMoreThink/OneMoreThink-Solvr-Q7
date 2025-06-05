@@ -1,15 +1,28 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import dayjs from 'dayjs';
 
 dotenv.config();
 
 export interface Release {
   id: number;
+  tag_name: string;
   name: string;
   created_at: string;
+  published_at: string;
   author: {
+    id: number;
     login: string;
   };
+  body: string;
+  draft: boolean;
+  prerelease: boolean;
+  assets: {
+    id: number;
+    name: string;
+    download_count: number;
+  }[];
+  html_url: string;
 }
 
 interface RepoConfig {

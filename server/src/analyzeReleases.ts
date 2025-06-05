@@ -11,14 +11,94 @@ export interface ReleaseStats {
   value: number;
 }
 
+export interface ReleaseRawData {
+  Repository: string;
+  ReleaseId: number;
+  TagName: string;
+  ReleaseName: string;
+  PublishedAt: string;
+  PublishedAtKST: string;
+  IsPreRelease: string;
+  IsDraft: string;
+  AuthorLogin: string;
+  AuthorId: number;
+  BodySnippet: string;
+  AssetsCount: number;
+  TotalDownloadCount: number;
+  ReleaseUrl: string;
+  Weekday: string;
+  HourOfDay: number;
+  IsWeekend: string;
+  MajorVersion: number | null;
+  MinorVersion: number | null;
+  PatchVersion: number | null;
+  ReleaseType: string;
+}
+
 // 주말 여부를 확인하는 함수
 function isWeekend(date: dayjs.Dayjs): boolean {
   const day = date.day();
   return day === 0 || day === 6; // 0: 일요일, 6: 토요일
 }
 
-export function analyzeReleases(releases: Release[], repoName: string): ReleaseStats[] {
+// 버전 정보를 파싱하는 함수
+function parseVersion(tagName: string): { major: number | null; minor: number | null; patch: number | null; type: string } {
+  // @scope/package@version 형식 처리
+  const scopedPackageMatch = tagName.match(/^@[^/]+\/[^@]+@(\d+)\.(\d+)\.(\d+)$/);
+  if (scopedPackageMatch) {
+    const [, major, minor, patch] = scopedPackageMatch;
+    return {
+      major: parseInt(major, 10),
+      minor: parseInt(minor, 10),
+      patch: parseInt(patch, 10),
+      type: 'ScopedPackage',
+    };
+  }
+
+  // 일반적인 v1.2.3 형식 처리
+  const versionMatch = tagName.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+  if (versionMatch) {
+    const [, major, minor, patch] = versionMatch;
+    const majorNum = parseInt(major, 10);
+    const minorNum = parseInt(minor, 10);
+    const patchNum = parseInt(patch, 10);
+
+    let type = 'Other';
+    if (majorNum > 0) type = 'Major';
+    else if (minorNum > 0) type = 'Minor';
+    else if (patchNum > 0) type = 'Patch';
+
+    return {
+      major: majorNum,
+      minor: minorNum,
+      patch: patchNum,
+      type,
+    };
+  }
+
+  // 날짜 기반 버전 형식 처리 (예: 20240501.1)
+  const dateVersionMatch = tagName.match(/^(\d{8})\.(\d+)$/);
+  if (dateVersionMatch) {
+    return {
+      major: null,
+      minor: null,
+      patch: null,
+      type: 'DateBased',
+    };
+  }
+
+  // 기타 형식
+  return {
+    major: null,
+    minor: null,
+    patch: null,
+    type: 'Other',
+  };
+}
+
+export function analyzeReleases(releases: Release[], repoName: string): { stats: ReleaseStats[]; rawData: ReleaseRawData[] } {
   const stats: ReleaseStats[] = [];
+  const rawData: ReleaseRawData[] = [];
   const yearlyStats: { [key: string]: number } = {};
   const monthlyStats: { [key: string]: number } = {};
   const weeklyStats: { [key: string]: number } = {};
@@ -34,6 +114,32 @@ export function analyzeReleases(releases: Release[], repoName: string): ReleaseS
   releases.forEach((release) => {
     const date = dayjs(release.created_at);
     const isWeekendDay = isWeekend(date);
+    const versionInfo = parseVersion(release.tag_name);
+    
+    // 로우 데이터 생성
+    rawData.push({
+      Repository: repoName,
+      ReleaseId: release.id,
+      TagName: release.tag_name,
+      ReleaseName: release.name,
+      PublishedAt: release.published_at,
+      PublishedAtKST: dayjs(release.published_at).add(9, 'hour').format(),
+      IsPreRelease: release.prerelease ? 'TRUE' : 'FALSE',
+      IsDraft: release.draft ? 'TRUE' : 'FALSE',
+      AuthorLogin: release.author.login,
+      AuthorId: release.author.id,
+      BodySnippet: release.body?.slice(0, 100) || '',
+      AssetsCount: release.assets.length,
+      TotalDownloadCount: release.assets.reduce((sum, asset) => sum + asset.download_count, 0),
+      ReleaseUrl: release.html_url,
+      Weekday: date.format('dddd'),
+      HourOfDay: date.hour(),
+      IsWeekend: isWeekendDay ? 'TRUE' : 'FALSE',
+      MajorVersion: versionInfo.major,
+      MinorVersion: versionInfo.minor,
+      PatchVersion: versionInfo.patch,
+      ReleaseType: versionInfo.type,
+    });
     
     // 연간 통계
     const year = date.format('YYYY');
@@ -160,7 +266,7 @@ export function analyzeReleases(releases: Release[], repoName: string): ReleaseS
   });
 
   // 통계 유형별로 정렬
-  return stats.sort((a, b) => {
+  const sortedStats = stats.sort((a, b) => {
     if (a.stat_type !== b.stat_type) {
       const typeOrder = {
         yearly: 0,
@@ -177,4 +283,6 @@ export function analyzeReleases(releases: Release[], repoName: string): ReleaseS
     }
     return a.period.localeCompare(b.period);
   });
+
+  return { stats: sortedStats, rawData };
 } 

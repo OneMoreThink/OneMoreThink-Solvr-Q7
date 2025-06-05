@@ -72,6 +72,9 @@ importers:
       better-sqlite3:
         specifier: ^11.9.1
         version: 11.10.0
+      csv-stringify:
+        specifier: ^6.5.2
+        version: 6.5.2
       csv-writer:
         specifier: ^1.6.0
         version: 1.6.0
@@ -804,6 +807,9 @@ packages:
 
   csstype@3.1.3:
     resolution: {integrity: sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==}
+
+  csv-stringify@6.5.2:
+    resolution: {integrity: sha512-RFPahj0sXcmUyjrObAK+DOWtMvMIFV328n4qZJhgX3x2RqkQgOTU2mCUmiFR0CzM6AzChlRSUErjiJeEt8BaQA==}
 
   csv-writer@1.6.0:
     resolution: {integrity: sha512-NOx7YDFWEsM/fTRAJjRpPp8t+MKRVvniAg9wQlUKx20MFrPs73WLJhFf5iteqrxNYnsy924K3Iroh3yNHeYd2g==}
@@ -2542,6 +2548,8 @@ snapshots:
   cssesc@3.0.0: {}
 
   csstype@3.1.3: {}
+
+  csv-stringify@6.5.2: {}
 
   csv-writer@1.6.0: {}
 
